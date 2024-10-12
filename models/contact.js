@@ -5,12 +5,18 @@ const contactSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Set name for contact'],
   },
-  email: String,
-  phone: String,
+  email: {
+    type: String,
+  },
+  phone: {
+    type: String,
+  },
   favorite: {
     type: Boolean,
     default: false,
   },
 });
 
-module.exports = mongoose.model('Contact', contactSchema);
+const Contact = mongoose.model('Contact', contactSchema);
+
+module.exports = Contact;
