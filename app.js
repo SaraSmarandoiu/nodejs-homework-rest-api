@@ -1,25 +1,21 @@
-const express = require('express')
-const logger = require('morgan')
-const cors = require('cors')
+const express = require('express');
+const mongoose = require('mongoose');
+const contactsRouter = require('./routes/api/contacts');
+const usersRouter = require('./routes/api/users');
 
-const contactsRouter = require('./routes/api/contacts')
+const app = express();
+app.use(express.json());
 
-const app = express()
+const MONGO_URI = 'mongodb+srv://sarasmarandoiu:sara@cluster0.ts6q8.mongodb.net/db-contacts?retryWrites=true&w=majority';
 
-const formatsLogger = app.get('env') === 'development' ? 'dev' : 'short'
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('Database connection successful'))
+  .catch(err => {
+    console.error('Database connection error:', err);
+    process.exit(1);
+  });
 
-app.use(logger(formatsLogger))
-app.use(cors())
-app.use(express.json())
+app.use('/api/contacts', contactsRouter);
+app.use('/api/users', usersRouter);
 
-app.use('/api/contacts', contactsRouter)
-
-app.use((req, res) => {
-  res.status(404).json({ message: 'Not found' })
-})
-
-app.use((err, req, res, next) => {
-  res.status(500).json({ message: err.message })
-})
-
-module.exports = app
+module.exports = app;
