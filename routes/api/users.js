@@ -3,14 +3,19 @@ const User = require('../../models/user');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const Jimp = require('jimp');
+const path = require('path');
+const auth = require('../../middleware/auth');
+const upload = require('../../middleware/upload');
 
 const router = express.Router();
+const avatarsDir = path.join(__dirname, '../../public/avatars');
 
 router.post(
   '/signup',
   [
     body('email').isEmail().withMessage('Email is required'),
-    body('password').isLength({ min: 6 }).withMessage('Password is required and must be at least 6 characters long'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -86,22 +91,10 @@ router.post(
   }
 );
 
-router.get('/logout', async (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Not authorized' });
-  }
-
+router.get('/logout', auth, async (req, res) => {
   try {
-    const user = await User.findOne({ token });
-    if (!user) {
-      return res.status(401).json({ message: 'Not authorized' });
-    }
-
-    user.token = null;
-    await user.save();
-
+    req.user.token = null;
+    await req.user.save();
     res.status(204).send();
   } catch (error) {
     console.error('Error logging out:', error);
@@ -109,27 +102,28 @@ router.get('/logout', async (req, res) => {
   }
 });
 
-router.get('/current', async (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
+router.get('/current', auth, async (req, res) => {
+  res.status(200).json({
+    email: req.user.email,
+    subscription: req.user.subscription,
+  });
+});
 
-  if (!token) {
-    return res.status(401).json({ message: 'Not authorized' });
-  }
+router.patch('/avatars', auth, upload.single('avatar'), async (req, res) => {
+  const { path: tempPath, filename } = req.file;
+  const avatarPath = path.join(avatarsDir, filename);
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(401).json({ message: 'Not authorized' });
-    }
+    const image = await Jimp.read(tempPath);
+    await image.resize(250, 250).writeAsync(avatarPath);
+    
+    req.user.avatarURL = `/avatars/${filename}`;
+    await req.user.save();
 
-    res.status(200).json({
-      email: user.email,
-      subscription: user.subscription,
-    });
+    res.status(200).json({ avatarURL: req.user.avatarURL });
   } catch (error) {
-    console.error('Error retrieving current user:', error);
-    res.status(401).json({ message: 'Not authorized' });
+    console.error('Error updating avatar:', error);
+    res.status(500).json({ message: 'Error updating avatar' });
   }
 });
 

@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 const MONGO_URI = process.env.MONGO_URI;
-
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('Database connection successful');
@@ -19,6 +18,8 @@ mongoose.connect(MONGO_URI)
     console.error('Database connection error:', error);
     process.exit(1);
   });
+
+app.use(express.static('public'));
 
 app.use('/api/contacts', contactsRouter);
 app.use('/api/users', usersRouter);
