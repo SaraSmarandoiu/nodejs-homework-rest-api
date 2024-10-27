@@ -1,29 +1,27 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const contactsRouter = require('./routes/api/contacts');
-const usersRouter = require('./routes/api/users');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const path = require('path');
+
+dotenv.config();
+
+const userRoutes = require('./routes/api/users');
+const contactRoutes = require('./routes/api/contacts');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const MONGO_URI = process.env.MONGO_URI;
-mongoose.connect(MONGO_URI)
+app.use('/api/users', userRoutes);
+app.use('/api/contacts', contactRoutes);
+
+const PORT = process.env.PORT || 3000;
+
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
-    console.log('Database connection successful');
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
   })
-  .catch(error => {
-    console.error('Database connection error:', error);
-    process.exit(1);
-  });
-
-app.use(express.static('public'));
-
-app.use('/api/contacts', contactsRouter);
-app.use('/api/users', usersRouter);
-
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
-});
+  .catch(error => console.log(`Error connecting to database: ${error.message}`));
