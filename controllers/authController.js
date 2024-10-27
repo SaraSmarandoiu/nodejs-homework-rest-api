@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
-// Înregistrarea utilizatorului
 const signup = async (req, res) => {
   const { email, password } = req.body;
 
@@ -30,7 +29,6 @@ const signup = async (req, res) => {
   }
 };
 
-// Logarea utilizatorului
 const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -61,7 +59,6 @@ const login = async (req, res) => {
   }
 };
 
-// Logout
 const logout = async (req, res) => {
   const { user } = req;
   user.token = null;

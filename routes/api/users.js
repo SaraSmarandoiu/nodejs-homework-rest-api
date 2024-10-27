@@ -64,23 +64,32 @@ router.post('/login', async (req, res) => {
 });
 
 router.patch('/avatars', auth, upload.single('avatar'), async (req, res) => {
+  console.log("Request received to update avatar");
+  
   if (!req.file) {
+    console.log("No file received");
     return res.status(400).json({ message: 'Avatar file is required' });
   }
 
   const { path: tempPath, filename } = req.file;
-  const newAvatarPath = path.join(AVATARS_DIR, `${req.user._id}_${filename}.jpg`);
+  const newAvatarPath = path.join(AVATARS_DIR, `${req.user._id}_${Date.now()}.jpg`);
 
   try {
+    console.log(`Processing image at ${tempPath}`);
+
     const image = await Jimp.read(tempPath);
     await image.resize(250, 250).quality(60).writeAsync(newAvatarPath);
+
     await fs.unlink(tempPath);
 
-    req.user.avatarURL = `/avatars/${req.user._id}_${filename}.jpg`;
+    req.user.avatarURL = `/avatars/${path.basename(newAvatarPath)}`;
     await req.user.save();
 
+    console.log(`Avatar updated successfully: ${req.user.avatarURL}`);
     res.status(200).json({ avatarURL: req.user.avatarURL });
   } catch (error) {
+    console.error("Error processing avatar:", error);
+    await fs.unlink(tempPath);
     res.status(500).json({ message: 'Error updating avatar' });
   }
 });
