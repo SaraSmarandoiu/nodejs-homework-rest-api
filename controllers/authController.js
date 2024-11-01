@@ -2,6 +2,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 const signup = async (req, res) => {
   const { email, password } = req.body;
 
@@ -18,6 +21,17 @@ const signup = async (req, res) => {
       password: hashedPassword,
     });
 
+    const verificationUrl = `http://localhost:${process.env.PORT}/api/users/verify/${user.verificationToken}`;
+    const msg = {
+      to: user.email,
+      from: process.env.SENDER_EMAIL,
+      subject: 'Please verify your email address',
+      text: `Click the link to verify your email: ${verificationUrl}`,
+      html: `<strong>Click the link to verify your email: <a href="${verificationUrl}">${verificationUrl}</a></strong>`,
+    };
+
+    await sgMail.send(msg);
+
     res.status(201).json({
       user: {
         email: user.email,
@@ -28,6 +42,7 @@ const signup = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -70,5 +85,6 @@ const getCurrentUser = async (req, res) => {
   const { email, subscription } = req.user;
   res.status(200).json({ email, subscription });
 };
+
 
 module.exports = { signup, login, logout, getCurrentUser };

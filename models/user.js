@@ -19,11 +19,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  verificationToken: {
+    type: String,
+    required: false, 
+    default: null, 
+  },
+  verify: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 userSchema.pre('save', function (next) {
   if (this.isNew) {
     this.avatarURL = gravatar.url(this.email, { s: '250', d: 'retro' }, true);
+    this.verificationToken = require('crypto').randomBytes(16).toString('hex');
   }
   next();
 });

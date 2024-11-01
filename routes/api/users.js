@@ -5,13 +5,20 @@ const multer = require('multer');
 const Jimp = require('jimp');
 const fs = require('fs/promises');
 const path = require('path');
+const sgMail = require('@sendgrid/mail');
+
+
+
 
 const User = require('../../models/user');
 const auth = require('../../middleware/auth');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const router = express.Router();
 const AVATARS_DIR = path.join(__dirname, '../../public/avatars');
 const TMP_DIR = path.join(__dirname, '../../tmp');
+
+
 
 const storage = multer.diskStorage({
   destination: TMP_DIR,
@@ -22,6 +29,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const crypto = require('crypto');
+
 router.post('/signup', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -31,7 +40,8 @@ router.post('/signup', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ email, password: hashedPassword });
+    const verificationToken = crypto.randomBytes(32).toString('hex'); // Generează un token
+    const newUser = new User({ email, password: hashedPassword, verificationToken }); // Adaugă verificationToken
     await newUser.save();
 
     res.status(201).json({
@@ -41,9 +51,11 @@ router.post('/signup', async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error during user registration:", error);
     res.status(500).json({ message: 'Error registering user' });
   }
 });
+
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -93,5 +105,49 @@ router.patch('/avatars', auth, upload.single('avatar'), async (req, res) => {
     res.status(500).json({ message: 'Error updating avatar' });
   }
 });
+router.get('/verify/:verificationToken', async (req, res) => {
+  const { verificationToken } = req.params;
+  
+  try {
+    const user = await User.findOne({ verificationToken });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.verificationToken = null; 
+    user.verify = true; 
+    await user.save();
+
+    res.status(200).json({ message: 'Verification successful' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+router.post('/verify', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ message: 'missing required field email' });
+  }
+
+  const user = await User.findOne({ email });
+  if (!user || user.verify) {
+    return res.status(400).json({ message: 'Verification has already been passed or user not found' });
+  }
+
+  const verificationUrl = `http://localhost:${process.env.PORT}/api/users/verify/${user.verificationToken}`;
+  const msg = {
+    to: user.email,
+    from: process.env.SENDER_EMAIL,
+    subject: 'Please verify your email address',
+    text: `Click the link to verify your email: ${verificationUrl}`,
+    html: `<strong>Click the link to verify your email: <a href="${verificationUrl}">${verificationUrl}</a></strong>`,
+  };
+
+  await sgMail.send(msg);
+  
+  res.status(200).json({ message: 'Verification email sent' });
+});
+
 
 module.exports = router;
